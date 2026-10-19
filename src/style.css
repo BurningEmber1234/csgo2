@@ -104,3 +104,44 @@
 @media(max-width:900px){.buy-shell{grid-template-columns:180px minmax(0,1fr)}.buy-sidebar{padding:20px 12px 15px}.weapon-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.weapon-card{min-height:166px}.buy-header{padding:17px 18px 13px}.buy-scroll{padding:12px 14px 15px}}
 @media(max-width:650px){#buyMenu{padding:0}.buy-shell{width:100vw;height:100dvh;min-height:0;grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);border:0}.buy-sidebar{padding:12px 14px 9px;border-right:0;border-bottom:1px solid #bdc1a522;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;gap:7px 12px}.armory-mark{font-size:16px;align-self:center}.armory-mark span{display:inline;margin-left:7px;font-size:7px}.buy-funds{grid-column:2;grid-row:1/3;margin:0;padding:7px 9px;min-width:105px}.buy-funds small{font-size:6px}.buy-funds strong{font-size:21px;margin:3px 0}.buy-funds span{display:none}.buy-categories{grid-column:1;grid-row:2;display:flex;gap:4px;overflow-x:auto;overflow-y:hidden}.buy-category{width:auto;flex:0 0 auto;gap:8px;padding:7px 8px;font-size:7px;white-space:nowrap}.buy-category small{font-size:6px}.buy-sidebar-note{display:none}.buy-main{grid-row:2}.buy-header{padding:11px 12px 10px;gap:8px}.buy-eyebrow{font-size:6px}.buy-title-block h2{font-size:22px}.buy-search{width:min(180px,45%);height:33px;padding:0 7px}.buy-search input{font-size:7px}.buy-close{width:31px;height:31px;flex-basis:31px}.buy-subhead{height:31px;padding:0 13px;font-size:7px}.buy-scroll{padding:9px}.weapon-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.weapon-card{min-height:155px;padding:9px 8px 8px}.card-name{font-size:15px}.card-description{font-size:6px}.card-capacity{margin-top:5px}.buy-footer{min-height:50px;padding:7px 11px}.buy-notice{font-size:6px}.buy-footer-controls{gap:9px;font-size:6px}.buy-footer-controls strong{font-size:12px}.cash-hud{top:12px;right:12px;min-width:90px;padding:7px 9px}.cash-hud strong{font-size:16px}.scope-caption{bottom:5vh}}
 @media(max-width:390px){.weapon-grid{grid-template-columns:1fr}.weapon-card{min-height:145px}.buy-footer-controls{gap:5px}.buy-footer-controls>span{display:none}}
+
+/* Lobby map ballot, between-round freeze time, and team spawn cues. */
+.map-vote-open{width:100%;margin-top:12px;padding:8px 9px;display:flex;justify-content:space-between;align-items:center;border:1px solid #d5b26b50;background:#edb5660c;color:#edbd74;font-size:7px;font-weight:800;letter-spacing:1.3px;text-align:left;transition:.16s}
+.map-vote-open:hover{border-color:#edb566;background:#edb56620}
+.map-vote-open span{font-size:13px}
+.mapcard{padding-bottom:14px}
+.map-vote-panel{width:min(1000px,94vw);max-height:92vh;overflow-y:auto;padding:34px;background:#202c28;border:1px solid #b5bd9a40;position:relative;scrollbar-color:#596657 #202c28;scrollbar-width:thin}
+.map-vote-panel h2{margin:10px 0 9px;font-family:'Barlow Condensed',sans-serif;font-size:36px;letter-spacing:3px;color:#edb566}
+.map-vote-panel>div p{max-width:680px;margin:0 0 18px;color:#b5bdb0;line-height:1.65;font-size:12px}
+.map-vote-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.map-vote-card{position:relative;display:flex;flex-direction:column;min-width:0;padding:12px;border:1px solid #aeb89c32;background:linear-gradient(150deg,#ffffff08,#ffffff02);color:#eee8d8;text-align:left;transition:transform .16s,border-color .16s,background .16s}
+.map-vote-card:hover{transform:translateY(-2px);border-color:var(--map-accent);background:linear-gradient(150deg,#ffffff11,#ffffff03)}
+.map-vote-card.selected{border-color:var(--map-accent);box-shadow:inset 0 0 0 1px var(--map-accent);background:linear-gradient(150deg,#ffffff12,#ffffff04)}
+.map-vote-card.current:not(.selected):after{content:'IN ROTATION';position:absolute;right:11px;bottom:52px;color:#8a9988;font-size:6px;letter-spacing:1px}
+.map-vote-card-head{display:flex;justify-content:space-between;align-items:center;color:#95a394;font-size:7px;letter-spacing:1.1px}
+.map-vote-card-head b{color:var(--map-accent);font-size:7px}
+.map-vote-preview{display:block;height:88px;margin:12px 0 10px;overflow:hidden;border:1px solid #ffffff12;background:linear-gradient(135deg,#15201d,#29342e 50%,#17221f);background-image:radial-gradient(ellipse at 30% 25%,color-mix(in srgb,var(--map-accent) 18%,transparent),transparent 55%),linear-gradient(135deg,#15201d,#29342e 50%,#17221f)}
+.map-vote-preview svg{width:100%;height:100%}
+.map-vote-preview .map-blocks{fill:#a2ad9724;stroke:#b4bc9c45;stroke-width:1}
+.map-vote-preview .map-route{fill:none;stroke:var(--map-accent);stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:5 3;opacity:.9}
+.map-vote-preview text{fill:var(--map-accent);font:700 9px Arial,sans-serif}
+.map-vote-card>strong{font-family:'Barlow Condensed',sans-serif;font-size:22px;letter-spacing:.5px}
+.map-vote-location{margin-top:4px;color:#b3b8a9;font-size:8px;letter-spacing:.2px}
+.map-vote-description{min-height:30px;margin-top:9px;color:#829084;font-size:8px;line-height:1.5}
+.map-vote-state{margin-top:10px;padding-top:8px;border-top:1px solid #ffffff15;color:var(--map-accent);font-size:7px;font-weight:800;letter-spacing:1.3px}
+.map-vote-summary{margin-top:15px;padding-top:14px;display:flex;justify-content:space-between;align-items:center;gap:16px;border-top:1px solid #ffffff1b}
+.map-vote-summary>span{color:#a1ac9c;font-size:8px;font-weight:700;letter-spacing:1px}
+.map-vote-summary button{display:flex;align-items:center;justify-content:space-between;gap:28px;padding:12px 14px;border:1px solid #edb566;background:#edb566;color:#19211e;font-size:9px;font-weight:800;letter-spacing:1.2px}
+.map-vote-summary button:hover:not(:disabled){background:#ffd392}
+.map-vote-summary button:disabled{cursor:not-allowed;opacity:.38}
+.map-vote-summary button b{font-size:14px}
+#roundCountdown{position:fixed;inset:0;z-index:9;display:grid;place-items:center;pointer-events:none}
+.countdown-panel{min-width:210px;padding:15px 28px 18px;display:flex;flex-direction:column;align-items:center;gap:3px;border-top:2px solid #e8b56a;border-bottom:1px solid #d5b26b46;background:#111b18d9;box-shadow:0 12px 40px #0005;text-align:center;animation:countdown-in .2s ease-out}
+.countdown-panel span{color:#c0c8b8;font-size:8px;font-weight:700;letter-spacing:2.2px}
+.countdown-panel strong{font-family:'Barlow Condensed',sans-serif;color:#f0c27d;font-size:76px;line-height:.95;font-weight:800;text-shadow:0 0 24px #e6a94b47}
+#roundCountdown.fight .countdown-panel{border-top-color:#9dc08b}
+#roundCountdown.fight .countdown-panel strong{color:#c4dcae;font-size:49px;letter-spacing:3px}
+@keyframes countdown-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:700px){.map-vote-panel{width:94vw;max-height:92vh;padding:24px 18px}.map-vote-grid{grid-template-columns:1fr;gap:8px}.map-vote-card{display:grid;grid-template-columns:110px 1fr;grid-template-rows:auto auto auto auto;column-gap:12px;padding:9px}.map-vote-card-head{grid-column:1/-1}.map-vote-preview{grid-column:1;grid-row:2/5;height:74px;margin:7px 0}.map-vote-card>strong,.map-vote-location,.map-vote-description,.map-vote-state{grid-column:2}.map-vote-card>strong{align-self:end;font-size:19px}.map-vote-description{min-height:0;margin-top:4px}.map-vote-state{margin-top:4px;padding-top:4px}.map-vote-card.current:not(.selected):after{right:10px;bottom:13px}.map-vote-summary{margin-top:10px;padding-top:10px}.map-vote-summary button{gap:12px;padding:10px}.countdown-panel{min-width:170px;padding:12px 22px}.countdown-panel strong{font-size:64px}}
+@media(max-width:600px){header{gap:12px;margin:0 3.5%}.brand{font-size:22px}.brand small{letter-spacing:2px}header nav{gap:7px}.nav{font-size:7px;letter-spacing:.8px;padding:0 1px}}
+@media(max-width:360px){.nav[data-tab="how"]{display:none}}
