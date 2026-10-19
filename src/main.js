@@ -4,33 +4,35 @@ import '@fontsource/barlow/700.css';
 import '@fontsource/barlow/800.css';
 import '@fontsource/barlow-condensed/800.css';
 import * as THREE from 'three';
-import { buildMap, canOccupy, floorHeight, locationName, spawns, structures } from './map.js';
+import { buildMap, canOccupy, clearMap, ctPlayerSpawn, ctTeammateSpawns, floorHeight, getMapDefinition, getMapTheme, locationName, mapCatalog, spawns, structures } from './map.js';
 import { buyCategories, weaponByName, weapons } from './weapons.js';
 
 const $ = (id) => document.getElementById(id);
+let activeMapId = 'dust-sector';
+const initialMapTheme = getMapTheme(activeMapId);
 const renderer = new THREE.WebGLRenderer({ canvas: $('game'), antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.7));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.setClearColor(0xa8c7d4);
+renderer.setClearColor(initialMapTheme.sky);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0xcac7b4, 0.004);
+scene.fog = new THREE.FogExp2(initialMapTheme.fog, 0.004);
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.08, 180);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 scene.add(new THREE.HemisphereLight(0xe8f0ed, 0x817052, 2.3));
-const sun = new THREE.DirectionalLight(0xffe0ac, 3.8);
+const sun = new THREE.DirectionalLight(initialMapTheme.sun, 3.8);
 sun.position.set(-28, 45, 18);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 150 });
 sun.shadow.bias = -0.001;
 scene.add(sun);
-const colliders = buildMap(scene);
+let colliders = buildMap(scene, activeMapId);
 
 const wood = new THREE.MeshStandardMaterial({ color: 0xa08b68, roughness: 1 });
 const radarCanvas = document.createElement('canvas');
@@ -48,6 +50,10 @@ let reserve = weaponByName['AK-47'].reserve;
 let kills = 0;
 let round = 0;
 let seconds = 115;
+let roundCountdown = 5;
+let roundLive = false;
+let mapVoteId = null;
+const mapVotes = Object.fromEntries(mapCatalog.map((map) => [map.id, 0]));
 let reloading = false;
 let reloadToken = 0;
 let lastShot = -Infinity;
@@ -66,6 +72,7 @@ let keys = {};
 let audio;
 let buyNoticeTimer;
 const enemies = [];
+const friendlies = [];
 const ray = new THREE.Raycaster();
 const clock = new THREE.Clock();
 const baseFov = 70;
@@ -84,6 +91,44 @@ let savedPosition = new THREE.Vector3(0, 1.7, 29);
 
 const currentWeapon = () => weaponByName[weapon];
 const formatMoney = (amount) => `$${Math.max(0, amount).toLocaleString('en-US')}`;
+
+function updateMapPresentation() {
+  const map = getMapDefinition(activeMapId);
+  const index = mapCatalog.findIndex((item) => item.id === map.id) + 1;
+  $('mapCardIndex').textContent = `${String(index).padStart(2, '0')} / ${String(mapCatalog.length).padStart(2, '0')}`;
+  $('mapCardName').textContent = map.label;
+  $('mapCardLocation').textContent = `${map.location} · ${map.time}`;
+  $('mapCardEnvironment').textContent = map.environment;
+  $('sceneMapName').textContent = map.label;
+  $('buyMapName').textContent = map.label;
+  document.querySelector('.mapgraphic svg').setAttribute('aria-label', `${map.name} tactical layout`);
+}
+
+function applyMapVote(mapId) {
+  const map = mapCatalog.find((item) => item.id === mapId);
+  if (!map) return;
+  if (mapId === activeMapId) {
+    updateMapPresentation();
+    return;
+  }
+  clearMap(scene);
+  activeMapId = mapId;
+  const theme = getMapTheme(activeMapId);
+  scene.fog.color.set(theme.fog);
+  renderer.setClearColor(theme.sky);
+  sun.color.set(theme.sun);
+  colliders = buildMap(scene, activeMapId);
+  updateMapPresentation();
+  if (started) {
+    started = false;
+    round = 0;
+    money = 16000;
+    $('ctscore').textContent = '0';
+    $('tscore').textContent = '0';
+    $('deploy').innerHTML = 'DEPLOY NOW <span>↗</span>';
+    reset();
+  }
+}
 
 function drawRadar() {
   const ctx = radarCanvas.getContext('2d');
@@ -234,11 +279,13 @@ function sound(frequency, duration, type = 'square', volume = 0.035) {
   }
 }
 
-function bot(x, z, index) {
+function makeSoldier(x, z, index, friendly = false) {
   const group = new THREE.Group();
   group.position.set(x, floorHeight(x, z), z);
-  const cloth = new THREE.MeshStandardMaterial({ color: [0x777258, 0x666454, 0x8c8062][index % 3] });
-  const vest = new THREE.MeshStandardMaterial({ color: 0x393f35 });
+  group.rotation.y = friendly ? 0 : Math.PI;
+  const clothColors = friendly ? [0x526c76, 0x5b7377, 0x455f6b] : [0x777258, 0x666454, 0x8c8062];
+  const cloth = new THREE.MeshStandardMaterial({ color: clothColors[index % clothColors.length] });
+  const vest = new THREE.MeshStandardMaterial({ color: friendly ? 0x30444b : 0x393f35 });
   const add = (width, height, depth, px, py, pz, material) => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
     mesh.position.set(px, py, pz);
@@ -256,8 +303,13 @@ function bot(x, z, index) {
   add(0.18, 0.5, 0.2, 0.36, 1.12, -0.12, cloth);
   add(0.13, 0.13, 0.8, 0.2, 1.25, -0.4, gunMat);
   scene.add(group);
-  group.userData.bot = true;
-  group.traverse((object) => { object.userData.enemy = group; });
+  group.userData.bot = !friendly;
+  if (!friendly) group.traverse((object) => { object.userData.enemy = group; });
+  return group;
+}
+
+function bot(x, z, index) {
+  const group = makeSoldier(x, z, index);
   enemies.push({
     mesh: group,
     hp: 100,
@@ -268,19 +320,29 @@ function bot(x, z, index) {
   });
 }
 
+function teammate(x, z, index) {
+  friendlies.push(makeSoldier(x, z, index, true));
+}
+
 function reset() {
   for (const enemy of enemies) scene.remove(enemy.mesh);
+  for (const teammateMesh of friendlies) scene.remove(teammateMesh);
   enemies.length = 0;
+  friendlies.length = 0;
   spawns.forEach(([x, z], index) => bot(x, z, index));
+  ctTeammateSpawns.forEach(([x, z], index) => teammate(x, z, index));
   reloadToken++;
   health = 100;
   ammo = currentWeapon().magazine;
   reserve = currentWeapon().reserve;
   kills = 0;
   seconds = 115;
+  roundCountdown = 5;
+  roundLive = false;
   reloading = false;
   roundEnding = false;
-  camera.position.set(0, 1.7, 29);
+  camera.position.set(ctPlayerSpawn[0], 1.7, ctPlayerSpawn[1]);
+  savedPosition.copy(camera.position);
   yaw = 0;
   pitch = 0;
   vertical = 0;
@@ -289,7 +351,30 @@ function reset() {
   $('killfeed').innerHTML = '';
   $('timer').textContent = '1:55';
   setScoped(false);
+  syncRoundCountdown();
   update();
+}
+
+function syncRoundCountdown() {
+  const panel = $('roundCountdown');
+  if (!playing || roundLive || roundEnding) {
+    panel.classList.add('hidden');
+    panel.classList.remove('fight');
+    return;
+  }
+  panel.classList.remove('hidden', 'fight');
+  $('roundCountdownLabel').textContent = 'ROUND STARTS IN';
+  $('roundCountdownValue').textContent = String(Math.max(1, Math.ceil(roundCountdown)));
+}
+
+function beginFight() {
+  roundLive = true;
+  const panel = $('roundCountdown');
+  panel.classList.remove('hidden');
+  panel.classList.add('fight');
+  $('roundCountdownLabel').textContent = 'ROUND LIVE';
+  $('roundCountdownValue').textContent = 'FIGHT';
+  window.setTimeout(() => panel.classList.add('hidden'), 850);
 }
 
 function equipWeapon(name) {
@@ -318,6 +403,7 @@ function deploy() {
   $('hud').classList.remove('hidden');
   playing = true;
   gun.visible = true;
+  syncRoundCountdown();
   renderer.domElement.requestPointerLock?.();
 }
 
@@ -330,6 +416,7 @@ document.addEventListener('pointerlockchange', () => {
     shooting = false;
     keys = {};
     setScoped(false);
+    syncRoundCountdown();
     document.body.classList.remove('playing');
     $('menu').classList.remove('hidden');
     $('hud').classList.add('hidden');
@@ -362,15 +449,15 @@ document.addEventListener('keydown', (event) => {
   if (buying) return;
   keys[event.code] = true;
   if (['Space', 'ArrowUp', 'ArrowDown'].includes(event.code)) event.preventDefault();
-  if (event.code === 'KeyR' && playing) reload();
-  if (event.code === 'Space' && playing && camera.position.y <= floorHeight(camera.position.x, camera.position.z) + 1.71) {
+  if (event.code === 'KeyR' && playing && roundLive) reload();
+  if (event.code === 'Space' && playing && roundLive && camera.position.y <= floorHeight(camera.position.x, camera.position.z) + 1.71) {
     vertical = 5;
   }
 });
 document.addEventListener('keyup', (event) => { keys[event.code] = false; });
 document.addEventListener('mousedown', (event) => {
   if (!playing || !document.pointerLockElement) return;
-  if (event.button === 0) {
+  if (event.button === 0 && roundLive) {
     if (currentWeapon().automatic) shooting = true;
     else shoot(clock.elapsedTime);
   } else if (event.button === 2) {
@@ -423,7 +510,7 @@ function eliminateEnemy(enemy) {
 
 function shoot(now) {
   const info = currentWeapon();
-  if (now - lastShot < info.fireDelay || reloading || health <= 0 || !playing) return;
+  if (now - lastShot < info.fireDelay || reloading || health <= 0 || !playing || !roundLive) return;
   if (ammo <= 0) {
     reload();
     return;
@@ -479,14 +566,18 @@ function endRound(won) {
   update();
   const wasPlaying = playing;
   playing = false;
+  roundLive = false;
+  roundCountdown = 0;
   shooting = false;
   keys = {};
   setScoped(false);
+  syncRoundCountdown();
   window.setTimeout(() => {
     reset();
     if (wasPlaying && document.pointerLockElement) {
       playing = true;
       gun.visible = true;
+      syncRoundCountdown();
     }
   }, 3500);
 }
@@ -501,56 +592,65 @@ function animate() {
   const time = clock.elapsedTime;
   if (playing) {
     camera.rotation.set(pitch, yaw, 0);
-    const forward = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
-    const strafe = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
-    let speed = (keys.ShiftLeft ? 2.3 : 4.7) * delta;
-    if (forward && strafe) speed *= 0.707;
-    const dx = (-Math.sin(yaw) * forward + Math.cos(yaw) * strafe) * speed;
-    const dz = (-Math.cos(yaw) * forward - Math.sin(yaw) * strafe) * speed;
-    if (canMove(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
-    if (canMove(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
-    vertical -= 12 * delta;
-    const ground = floorHeight(camera.position.x, camera.position.z) + 1.7;
-    camera.position.y = Math.max(ground, camera.position.y + vertical * delta);
-    if (camera.position.y === ground) vertical = 0;
     drawRadar();
 
-    walk += (Math.abs(forward) + Math.abs(strafe)) * delta * 9;
-    gun.position.x = 0.28 + Math.sin(walk) * 0.012;
-    gun.position.y = -0.28 + Math.cos(walk * 2) * 0.01;
-    gun.position.z = THREE.MathUtils.lerp(gun.position.z, -0.52, delta * 14);
-    gun.rotation.z = reloading ? Math.sin(time * 5) * 0.3 : 0;
-    gun.rotation.x = reloading ? -0.45 : 0;
-    if (shooting) shoot(time);
+    if (!roundLive && !roundEnding) {
+      roundCountdown = Math.max(0, roundCountdown - delta);
+      if (roundCountdown <= 0) beginFight();
+      else syncRoundCountdown();
+    }
 
-    seconds -= delta;
-    $('timer').textContent = `${Math.floor(Math.max(0, seconds) / 60)}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, '0')}`;
-    if (seconds <= 0) endRound(false);
+    if (roundLive && !roundEnding) {
+      const forward = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+      const strafe = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+      let speed = (keys.ShiftLeft ? 2.3 : 4.7) * delta;
+      if (forward && strafe) speed *= 0.707;
+      const dx = (-Math.sin(yaw) * forward + Math.cos(yaw) * strafe) * speed;
+      const dz = (-Math.cos(yaw) * forward - Math.sin(yaw) * strafe) * speed;
+      if (canMove(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
+      if (canMove(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
+      vertical -= 12 * delta;
+      const ground = floorHeight(camera.position.x, camera.position.z) + 1.7;
+      camera.position.y = Math.max(ground, camera.position.y + vertical * delta);
+      if (camera.position.y === ground) vertical = 0;
 
-    for (const enemy of enemies) {
-      if (!enemy.alive || roundEnding) continue;
-      const distance = enemy.mesh.position.distanceTo(camera.position);
-      enemy.mesh.lookAt(camera.position.x, enemy.mesh.position.y, camera.position.z);
-      enemy.mesh.rotateY(Math.PI);
-      const x = enemy.home.x + Math.sin(time * 0.6 + enemy.phase) * 1.2;
-      const z = enemy.home.z + Math.cos(time * 0.4 + enemy.phase) * 0.6;
-      if (canOccupy(colliders, x, z)) enemy.mesh.position.set(x, floorHeight(x, z), z);
-      enemy.shootAt -= delta;
-      if (enemy.shootAt <= 0 && distance < 25) {
-        enemy.shootAt = 1.5 + Math.random() * 1.5;
-        const origin = enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-        const direction = camera.position.clone().sub(origin).normalize();
-        ray.set(origin, direction);
-        const walls = ray.intersectObjects(scene.children.filter((object) => object.isMesh && !object.userData.enemy), false);
-        if (!walls.length || walls[0].distance > distance - 0.4) {
-          health = Math.max(0, health - 8 - Math.floor(Math.random() * 8));
-          $('damage').style.opacity = 0.6;
-          window.setTimeout(() => { $('damage').style.opacity = 0; }, 150);
-          sound(80, 0.12, 'triangle', 0.025);
-          update();
-          if (health === 0) {
-            endRound(false);
-            break;
+      walk += (Math.abs(forward) + Math.abs(strafe)) * delta * 9;
+      gun.position.x = 0.28 + Math.sin(walk) * 0.012;
+      gun.position.y = -0.28 + Math.cos(walk * 2) * 0.01;
+      gun.position.z = THREE.MathUtils.lerp(gun.position.z, -0.52, delta * 14);
+      gun.rotation.z = reloading ? Math.sin(time * 5) * 0.3 : 0;
+      gun.rotation.x = reloading ? -0.45 : 0;
+      if (shooting) shoot(time);
+
+      seconds -= delta;
+      $('timer').textContent = `${Math.floor(Math.max(0, seconds) / 60)}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, '0')}`;
+      if (seconds <= 0) endRound(false);
+
+      for (const enemy of enemies) {
+        if (!enemy.alive || roundEnding) continue;
+        const distance = enemy.mesh.position.distanceTo(camera.position);
+        enemy.mesh.lookAt(camera.position.x, enemy.mesh.position.y, camera.position.z);
+        enemy.mesh.rotateY(Math.PI);
+        const x = enemy.home.x + Math.sin(time * 0.6 + enemy.phase) * 1.2;
+        const z = enemy.home.z + Math.cos(time * 0.4 + enemy.phase) * 0.6;
+        if (canOccupy(colliders, x, z)) enemy.mesh.position.set(x, floorHeight(x, z), z);
+        enemy.shootAt -= delta;
+        if (enemy.shootAt <= 0 && distance < 25) {
+          enemy.shootAt = 1.5 + Math.random() * 1.5;
+          const origin = enemy.mesh.position.clone().add(new THREE.Vector3(0, 1.5, 0));
+          const direction = camera.position.clone().sub(origin).normalize();
+          ray.set(origin, direction);
+          const walls = ray.intersectObjects(scene.children.filter((object) => object.isMesh && !object.userData.enemy), false);
+          if (!walls.length || walls[0].distance > distance - 0.4) {
+            health = Math.max(0, health - 8 - Math.floor(Math.random() * 8));
+            $('damage').style.opacity = 0.6;
+            window.setTimeout(() => { $('damage').style.opacity = 0; }, 150);
+            sound(80, 0.12, 'triangle', 0.025);
+            update();
+            if (health === 0) {
+              endRound(false);
+              break;
+            }
           }
         }
       }
@@ -604,6 +704,64 @@ function renderWeaponGrid() {
   }).join('');
 }
 
+const mapPreviewPaths = {
+  'dust-sector': 'M18 58H54V20H118V55H162 M54 40H92V70',
+  frostline: 'M22 22H78V62H120V18H164 M78 42H46V72',
+  'harbor-front': 'M18 18H72V44H112V68H162 M72 44H34V68',
+};
+
+function renderMapVote() {
+  const options = $('mapVoteOptions');
+  options.innerHTML = mapCatalog.map((map, index) => {
+    const selected = mapVoteId === map.id;
+    const current = activeMapId === map.id;
+    const votes = mapVotes[map.id];
+    return `<button class="map-vote-card${selected ? ' selected' : ''}${current ? ' current' : ''}" type="button" data-vote-map="${map.id}" aria-pressed="${selected}" style="--map-accent:${map.accent}">
+      <span class="map-vote-card-head"><small>MAP 0${index + 1} · ${map.environment}</small><b>${votes} ${votes === 1 ? 'VOTE' : 'VOTES'}</b></span>
+      <span class="map-vote-preview ${map.id}" aria-hidden="true"><svg viewBox="0 0 180 88"><path class="map-blocks" d="M28 14h32v18H28zM120 12h35v21h-35zM28 58h35v17H28zM116 56h39v20h-39z"/><path class="map-route" d="${mapPreviewPaths[map.id]}"/><text x="145" y="49">A</text><text x="34" y="51">B</text></svg></span>
+      <strong>${map.name}</strong>
+      <span class="map-vote-location">${map.location} · ${map.time}</span>
+      <span class="map-vote-description">${map.description}</span>
+      <span class="map-vote-state">${selected ? 'YOUR VOTE' : current ? 'CURRENT MAP' : 'CAST VOTE'}</span>
+    </button>`;
+  }).join('');
+  $('mapVoteStatus').textContent = mapVoteId
+    ? `YOUR VOTE: ${getMapDefinition(mapVoteId).name.toUpperCase()} · CHANGE IT UNTIL LOCKED`
+    : 'CHOOSE A MAP TO CAST YOUR VOTE';
+  $('confirmMapVote').disabled = !mapVoteId;
+}
+
+function castMapVote(mapId) {
+  if (!mapCatalog.some((map) => map.id === mapId)) return;
+  if (mapVoteId) mapVotes[mapVoteId]--;
+  mapVoteId = mapId;
+  mapVotes[mapVoteId]++;
+  renderMapVote();
+}
+
+function confirmMapVote() {
+  if (!mapVoteId) return;
+  const winner = mapCatalog.reduce((leader, map) => mapVotes[map.id] > mapVotes[leader.id] ? map : leader);
+  applyMapVote(winner.id);
+  mapVoteId = null;
+  for (const map of mapCatalog) mapVotes[map.id] = 0;
+  modal.classList.add('hidden');
+  $('modal').querySelector('.panel').classList.remove('map-vote-panel');
+}
+
+function showMapVote() {
+  const panel = modal.querySelector('.panel');
+  panel.classList.add('map-vote-panel');
+  $('modalBody').dataset.view = 'maps';
+  $('modalBody').innerHTML = `
+    <div class="eyebrow">LOBBY BALLOT / NEXT MATCH</div>
+    <h2>MAP VOTE</h2>
+    <p>Choose a battlefield. Cast one vote and change it any time before locking. Picking a different map starts a fresh match.</p>
+    <div class="map-vote-grid" id="mapVoteOptions"></div>
+    <div class="map-vote-summary"><span id="mapVoteStatus">CHOOSE A MAP TO CAST YOUR VOTE</span><button id="confirmMapVote" type="button" disabled>LOCK VOTE <b>↗</b></button></div>`;
+  renderMapVote();
+}
+
 function setBuyNotice(message, kind = '') {
   const notice = $('buyNotice');
   notice.textContent = message;
@@ -623,6 +781,7 @@ function openBuyMenu() {
     shooting = false;
     keys = {};
     setScoped(false);
+    syncRoundCountdown();
   }
   buying = true;
   buyCategory = 'ALL';
@@ -649,6 +808,7 @@ function closeBuyMenu() {
     $('hud').classList.remove('hidden');
     document.body.classList.add('playing');
     gun.visible = true;
+    syncRoundCountdown();
     renderer.domElement.requestPointerLock?.();
   }
   resumeAfterBuy = false;
@@ -701,7 +861,8 @@ function showFieldManual() {
       <b>SHIFT</b> — Walk &nbsp; <b>SPACE</b> — Jump<br>
       <b>B</b> — Buy weapons &nbsp; <b>RIGHT CLICK</b> — Scope<br>
       <b>ESC</b> — Pause / close buy menu</p>
-    <p>Headshots are lethal; weapon damage, magazine size, and reload speed vary by weapon. Scoped rifles zoom while right mouse is held. Earn cash for eliminations and round results.</p>`;
+    <p>Headshots are lethal; weapon damage, magazine size, and reload speed vary by weapon. Scoped rifles zoom while right mouse is held. Earn cash for eliminations and round results.</p>
+    <p>Vote for the next battlefield from the lobby's <b>MAP VOTE</b> tab. Teams line up at their own spawns and get a five-second countdown before each fight.</p>`;
 }
 
 function showLoadout() {
@@ -716,19 +877,33 @@ function showLoadout() {
     <button class="modal-action" id="loadoutOpenBuy" type="button">OPEN BUY MENU <span>B</span></button>`;
 }
 
-$('closeModal').addEventListener('click', () => modal.classList.add('hidden'));
+$('closeModal').addEventListener('click', () => {
+  modal.classList.add('hidden');
+  modal.querySelector('.panel').classList.remove('map-vote-panel');
+});
 modal.addEventListener('click', (event) => {
-  if (event.target === modal) modal.classList.add('hidden');
+  if (event.target === modal) {
+    modal.classList.add('hidden');
+    modal.querySelector('.panel').classList.remove('map-vote-panel');
+  }
+  const mapChoice = event.target.closest('[data-vote-map]');
+  if (mapChoice) castMapVote(mapChoice.dataset.voteMap);
+  if (event.target.closest('#confirmMapVote')) confirmMapVote();
   if (event.target.closest('#loadoutOpenBuy')) openBuyMenu();
 });
 document.querySelectorAll('[data-tab]').forEach((button) => {
   button.addEventListener('click', () => {
+    document.querySelectorAll('header .nav').forEach((tab) => {
+      tab.classList.toggle('active', tab.dataset.tab === button.dataset.tab);
+    });
     if (button.dataset.tab === 'play') {
       modal.classList.add('hidden');
       return;
     }
     modal.classList.remove('hidden');
+    modal.querySelector('.panel').classList.remove('map-vote-panel');
     if (button.dataset.tab === 'how') showFieldManual();
+    else if (button.dataset.tab === 'maps') showMapVote();
     else showLoadout();
   });
 });
@@ -750,6 +925,7 @@ $('buyMenu').addEventListener('keydown', (event) => {
 });
 
 buildGunModel();
+updateMapPresentation();
 renderBuyCategories();
 renderWeaponGrid();
 update();

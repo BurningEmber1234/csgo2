@@ -14,6 +14,7 @@
       <a class="brand" href="#">B<span>R</span>EACH<i>®</i><small>TACTICAL OPERATIONS</small></a>
       <nav>
         <button class="nav active" data-tab="play">PLAY</button>
+        <button class="nav" data-tab="maps">MAP VOTE</button>
         <button class="nav" data-tab="loadout">LOADOUT</button>
         <button class="nav" data-tab="how">FIELD MANUAL</button>
       </nav>
@@ -36,7 +37,7 @@
       </section>
 
       <aside class="mapcard">
-        <div class="maptop"><span>ACTIVE DUTY MAP</span><span>01 / 03</span></div>
+        <div class="maptop"><span>ACTIVE DUTY MAP</span><span id="mapCardIndex">01 / 03</span></div>
         <div class="mapgraphic">
           <svg viewBox="0 0 260 130" aria-label="Dust Sector layout: B tunnels west, mid doors center, A long east">
             <path d="M75 7h110v116H75Z M100 90h16v24h-16Z M143 90h18v24h-18Z M99 44h18v38H99Z M143 42h18v40h-18Z M100 15h16v22h-16Z M142 15h16v22h-16Z" fill-rule="evenodd"/>
@@ -45,10 +46,11 @@
           </svg>
         </div>
         <div class="mapbottom">
-          <div><h3>DUST SECTOR</h3><p>Al-Mazrah outskirts · 14:32</p></div>
+          <div><h3 id="mapCardName">DUST SECTOR</h3><p id="mapCardLocation">Al-Mazrah outskirts · 14:32</p></div>
           <span class="sun">☀</span>
         </div>
-        <div class="maptags"><span>DEFUSAL</span><span>DESERT</span><span>COMPETITIVE</span></div>
+        <div class="maptags"><span>DEFUSAL</span><span id="mapCardEnvironment">DESERT</span><span>COMPETITIVE</span></div>
+        <button class="map-vote-open" type="button" data-tab="maps">CAST MAP VOTE <span>↗</span></button>
       </aside>
 
       <div class="bottomline">
@@ -59,7 +61,7 @@
 
     <div class="scene-label" id="sceneLabel">
       <span>34° 31′ 08.2″ N / 69° 10′ 25.4″ E</span>
-      <b>DUST SECTOR <i>—</i> A SITE</b>
+      <b><span id="sceneMapName">DUST SECTOR</span> <i>—</i> A SITE</b>
     </div>
 
     <div id="hud" class="hidden">
@@ -88,6 +90,10 @@
       </div>
     </div>
 
+    <div id="roundCountdown" class="hidden" aria-live="assertive" aria-atomic="true">
+      <div class="countdown-panel"><span id="roundCountdownLabel">ROUND STARTS IN</span><strong id="roundCountdownValue">5</strong></div>
+    </div>
+
     <div id="scopeOverlay" class="hidden" aria-hidden="true">
       <div class="scope-reticle"><i></i><b></b></div>
       <div class="scope-caption"><strong id="scopeWeapon">AWP</strong><span id="scopeZoom">2.9× OPTIC</span></div>
@@ -112,7 +118,7 @@
         <section class="buy-main">
           <div class="buy-header">
             <div class="buy-title-block">
-              <span class="buy-eyebrow">TACTICAL SUPPLY · DUST SECTOR</span>
+              <span class="buy-eyebrow">TACTICAL SUPPLY · <span id="buyMapName">DUST SECTOR</span></span>
               <h2 id="buyTitle">FIELD BUY</h2>
             </div>
             <label class="buy-search"><span>⌕</span><input id="buySearch" type="search" placeholder="SEARCH WEAPONS" autocomplete="off" aria-label="Search weapons"></label>

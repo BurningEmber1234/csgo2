@@ -10,6 +10,10 @@ The catalog includes all CS2 buyable firearms and the Zeus x27: Glock-18, P2000,
 
 Hold **right mouse button** to scope with the Marshal, AWP, SSG 08, G3SG1, SCAR-20, AUG, or SG 553.
 
+## Maps and rounds
+
+Vote from the lobby's **MAP VOTE** tab (or the active map card) for Dust Sector, Frostline, or Harbor Front. You can change your vote until you lock it; changing to a different map starts a fresh match. Each new round begins with a five-second freeze-time countdown, then displays **FIGHT**. Five CTs line up at CT spawn and five hostiles line up at T spawn, side-by-side.
+
 ## Controls
 
 - **W A S D** — Move

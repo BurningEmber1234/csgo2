@@ -1,8 +1,69 @@
 import * as THREE from 'three';
 
-// Original Dust-inspired layout. Coordinates are shared with navigation and radar.
+export const mapCatalog = [
+  {
+    id: 'dust-sector',
+    name: 'Dust Sector',
+    label: 'DUST SECTOR',
+    location: 'Al-Mazrah outskirts',
+    time: '14:32',
+    environment: 'DESERT',
+    description: 'Sun-baked lanes, sandstone cover, and long sightlines.',
+    accent: '#e4b66f',
+  },
+  {
+    id: 'frostline',
+    name: 'Frostline',
+    label: 'FROSTLINE',
+    location: 'Kara Ridge · Siberia',
+    time: '03:14',
+    environment: 'ARCTIC',
+    description: 'A frozen relay station in blue-hour snowfall.',
+    accent: '#9bd0dc',
+  },
+  {
+    id: 'harbor-front',
+    name: 'Harbor Front',
+    label: 'HARBOR FRONT',
+    location: 'Port of Kestrel',
+    time: '05:47',
+    environment: 'COASTAL',
+    description: 'Industrial docks, weathered steel, and sea mist.',
+    accent: '#d68b63',
+  },
+];
+
+const mapThemes = {
+  'dust-sector': {
+    sand: '#d4bb8b', cream: '#e0cfaa', stone: '#b5a17c', paving: '#bfb295', timber: '#786346', blue: '#5f8587',
+    steel: 0x47534b, recess: 0x353c37, rust: 0x9b6241, fog: 0xcac7b4, sky: 0xa8c7d4, sun: 0xffe0ac,
+    label: '#963e25',
+  },
+  frostline: {
+    sand: '#c3d0d0', cream: '#e0e8e4', stone: '#8eaaaf', paving: '#aebfc0', timber: '#647779', blue: '#5b9ba8',
+    steel: 0x52696e, recess: 0x304247, rust: 0x96745f, fog: 0xb6cbd1, sky: 0x91b4c3, sun: 0xd5e8ed,
+    label: '#507f88',
+  },
+  'harbor-front': {
+    sand: '#929e95', cream: '#c4cabe', stone: '#707e78', paving: '#87948d', timber: '#665648', blue: '#457b80',
+    steel: 0x405457, recess: 0x2c393a, rust: 0xb26445, fog: 0xaebdb6, sky: 0xa3c0c4, sun: 0xffd3a1,
+    label: '#a75f43',
+  },
+};
+
+export function getMapDefinition(id) {
+  return mapCatalog.find((map) => map.id === id) || mapCatalog[0];
+}
+
+export function getMapTheme(id) {
+  return mapThemes[id] || mapThemes['dust-sector'];
+}
+
 export const bounds = { minX: -28, maxX: 28, minZ: -35, maxZ: 34 };
-export const spawns = [[0, -9], [-19, -23], [19, -24], [4, -30], [-19, 3]];
+export const ctSpawns = [[-5, 29], [-2.5, 29], [0, 29], [2.5, 29], [5, 29]];
+export const ctPlayerSpawn = [0, 29];
+export const ctTeammateSpawns = ctSpawns.filter(([x]) => x !== ctPlayerSpawn[0]);
+export const spawns = [[-5, -31], [-2.5, -31], [0, -31], [2.5, -31], [5, -31]];
 export const structures = [
   [-10, 22, 8, 13, 8], [11, 22, 9, 13, 10],
   [-10, 1, 9, 22, 9], [11, 0, 9, 24, 11],
@@ -30,7 +91,31 @@ export function locationName(x, z) {
   if (z < -28) return 'CROSSOVER';
   return z < -12 ? 'MID DOORS' : 'MID';
 }
-export function buildMap(scene) {
+export function clearMap(scene) {
+  const mapObjects = scene.children.filter((object) => object.userData.mapObject);
+  const geometries = new Set();
+  const materials = new Set();
+  const textures = new Set();
+  for (const object of mapObjects) {
+    object.traverse((child) => {
+      if (child.geometry) geometries.add(child.geometry);
+      const childMaterials = Array.isArray(child.material) ? child.material : [child.material];
+      for (const material of childMaterials) {
+        if (!material) continue;
+        materials.add(material);
+        if (material.map) textures.add(material.map);
+      }
+    });
+    scene.remove(object);
+  }
+  geometries.forEach((geometry) => geometry.dispose());
+  materials.forEach((material) => material.dispose());
+  textures.forEach((texture) => texture.dispose());
+}
+
+export function buildMap(scene, mapId = 'dust-sector') {
+  const firstMapObject = scene.children.length;
+  const theme = getMapTheme(mapId);
   const colliders = [];
   function surface(color, mode = 'plaster') {
     const c = document.createElement('canvas'); c.width = c.height = 256;
@@ -55,18 +140,18 @@ export function buildMap(scene) {
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
     return new THREE.MeshStandardMaterial({map, roughness:.95});
   }
-  const sand=surface('#d4bb8b'), cream=surface('#e0cfaa'), stone=surface('#b5a17c','stone');
-  const paving=surface('#bfb295','paving');paving.map.repeat.set(32,40);
-  const timber=surface('#786346','wood'), blue=surface('#5f8587');
-  const steel=new THREE.MeshStandardMaterial({color:0x47534b,roughness:.7,metalness:.35});
-  const recess=new THREE.MeshStandardMaterial({color:0x353c37});
-  const rust=new THREE.MeshStandardMaterial({color:0x9b6241,roughness:.85});
+  const sand=surface(theme.sand), cream=surface(theme.cream), stone=surface(theme.stone,'stone');
+  const paving=surface(theme.paving,'paving');paving.map.repeat.set(32,40);
+  const timber=surface(theme.timber,'wood'), blue=surface(theme.blue);
+  const steel=new THREE.MeshStandardMaterial({color:theme.steel,roughness:.7,metalness:.35});
+  const recess=new THREE.MeshStandardMaterial({color:theme.recess});
+  const rust=new THREE.MeshStandardMaterial({color:theme.rust,roughness:.85});
   function box(w,h,d,x,y,z,mat=sand,solid=false) {
     const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);
     m.castShadow=m.receiveShadow=true;scene.add(m);
     if(solid)colliders.push(new THREE.Box3().setFromObject(m));return m;
   }
-  function label(text,x,y,z,rotation=0,size=2,color='#963e25') {
+  function label(text,x,y,z,rotation=0,size=2,color=theme.label) {
     const c=document.createElement('canvas');c.width=512;c.height=256;
     const ctx=c.getContext('2d');ctx.fillStyle=color;ctx.textAlign='center';ctx.font='bold 115px Arial';ctx.fillText(text,256,170);
     const m=new THREE.Mesh(new THREE.PlaneGeometry(size*2,size),new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));
@@ -163,5 +248,29 @@ export function buildMap(scene) {
   }
   // Distant skyline stays outside the playable boundary.
   for(let i=0;i<12;i++){let x=-40+i*7,h=8+(i%4)*2;box(6,h,8,x,h/2,-43,i%2?cream:sand);}
+  // Small environment-specific landmarks make each vote visibly distinct.
+  if (mapId === 'frostline') {
+    const ice = new THREE.MeshStandardMaterial({ color: 0x79b6c3, metalness: 0.28, roughness: 0.24, transparent: true, opacity: 0.62 });
+    box(8, 0.045, 24, 0, -0.015, 1, ice);
+    for (const [x, z] of [[-5, 4], [5, -6], [20, 5]]) box(2.4, 1.8, 2.4, x, 0.9, z, ice, true);
+    for (const [x, z] of [[-23, 10], [23, 10], [-23, -10], [23, -10]]) {
+      const shard = new THREE.Mesh(new THREE.OctahedronGeometry(1.1, 0), ice);
+      shard.position.set(x, 1.1, z);
+      shard.scale.set(0.55, 1.65, 0.55);
+      scene.add(shard);
+    }
+  } else if (mapId === 'harbor-front') {
+    const water = new THREE.MeshStandardMaterial({ color: 0x284d56, metalness: 0.48, roughness: 0.24 });
+    box(5, 0.08, 100, -32, -0.02, 0, water);
+    box(5, 0.08, 100, 32, -0.02, 0, water);
+    for (const [x, z, color] of [[-22, 12, 0x9c5d43], [22, 12, 0x496a70], [-22, -12, 0x687056], [22, -12, 0x9c5d43]]) {
+      const container = new THREE.MeshStandardMaterial({ color, metalness: 0.36, roughness: 0.72 });
+      box(3.6, 1.5, 2.2, x, 0.75, z, container, true);
+      for (let rib = -1.4; rib <= 1.4; rib += 0.4) box(0.055, 1.48, 2.23, x + rib, 0.75, z, steel);
+    }
+  }
+
+  for (const object of scene.children.slice(firstMapObject)) object.userData.mapObject = true;
+  scene.userData.activeMap = mapId;
   return colliders;
 }

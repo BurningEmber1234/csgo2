@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { buildMap, canOccupy, floorHeight, locationName, spawns } from '../src/map.js';
+import { buildMap, canOccupy, clearMap, ctPlayerSpawn, ctSpawns, ctTeammateSpawns, floorHeight, getMapTheme, locationName, mapCatalog, spawns } from '../src/map.js';
 
 // Geometry can be tested without WebGL; only procedural texture drawing is stubbed.
 const noop=()=>{};
@@ -9,8 +9,35 @@ globalThis.document={createElement:()=>({width:0,height:0,getContext:()=>new Pro
 const scene=new THREE.Scene();
 const colliders=buildMap(scene);
 
-test('spawn and hostile patrol centers have standing clearance',()=>{
-  for(const [x,z] of [[0,29],...spawns])assert.ok(canOccupy(colliders,x,z),`Blocked spawn ${x},${z}`);
+test('side-by-side CT and T spawn rows have standing clearance',()=>{
+  for(const [x,z] of [...ctSpawns,...spawns])assert.ok(canOccupy(colliders,x,z),`Blocked spawn ${x},${z}`);
+  assert.deepEqual(ctPlayerSpawn,[0,29]);
+  assert.equal(ctTeammateSpawns.length,4);
+  for(const row of [ctSpawns,spawns]){
+    assert.equal(new Set(row.map(([,z])=>z)).size,1,'All teammates share a spawn line');
+    assert.deepEqual(row.map(([x])=>x),[-5,-2.5,0,2.5,5]);
+  }
+});
+test('map ballot offers distinct themed battlefields',()=>{
+  assert.deepEqual(mapCatalog.map(map=>map.id),['dust-sector','frostline','harbor-front']);
+  assert.equal(new Set(mapCatalog.map(map=>map.name)).size,mapCatalog.length);
+  assert.notEqual(getMapTheme('dust-sector').fog,getMapTheme('frostline').fog);
+  assert.notEqual(getMapTheme('frostline').fog,getMapTheme('harbor-front').fog);
+});
+test('voted maps can be rebuilt and the previous map is removable',()=>{
+  const alternateScene=new THREE.Scene();
+  const frostColliders=buildMap(alternateScene,'frostline');
+  assert.ok(frostColliders.length>0);
+  for(const [x,z] of [...ctSpawns,...spawns])assert.ok(canOccupy(frostColliders,x,z),`Blocked Frostline spawn ${x},${z}`);
+  assert.ok(alternateScene.children.some(object=>object.userData.mapObject));
+  clearMap(alternateScene);
+  assert.equal(alternateScene.children.length,0);
+  const harborColliders=buildMap(alternateScene,'harbor-front');
+  assert.ok(harborColliders.length>0);
+  for(const [x,z] of [...ctSpawns,...spawns])assert.ok(canOccupy(harborColliders,x,z),`Blocked Harbor Front spawn ${x},${z}`);
+  assert.equal(alternateScene.userData.activeMap,'harbor-front');
+  clearMap(alternateScene);
+  assert.equal(alternateScene.children.length,0);
 });
 test('mid doors and tunnels have standing clearance, outer walls contain player',()=>{
   assert.ok(canOccupy(colliders,0,-14));
