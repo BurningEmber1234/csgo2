@@ -1,1 +1,144 @@
-<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BREACH — Tactical Operations</title><link rel="stylesheet" href="/src/style.css"></head><body><canvas id="game"></canvas><div id="vignette"></div><header><a class="brand" href="#">B<span>R</span>EACH<i>®</i><small>TACTICAL OPERATIONS</small></a><nav><button class="nav active" data-tab="play">PLAY</button><button class="nav" data-tab="loadout">LOADOUT</button><button class="nav" data-tab="how">FIELD MANUAL</button></nav><div class="profile"><span class="online"></span> SERVERS ONLINE <b>EU · 24 MS</b><div class="avatar">V</div></div></header><main id="menu"><section class="intro"><div class="eyebrow"><span></span> SEASON 01 <i>/</i> OPERATION SUNBREAK</div><h1>EVERY ANGLE.<br>EVERY SECOND.<br><em>COUNTS.</em></h1><p>One life. Five opponents. No second chances.<br>Step into the next generation of tactical combat.</p><div class="launch"><button id="deploy">DEPLOY NOW <span>↗</span></button><div class="launch-note">QUICK MATCH <b>5V5 · DEFUSAL</b></div></div><div class="status"><span class="online"></span> LIVE TRAINING AVAILABLE <span class="divider">/</span> NO DOWNLOAD REQUIRED</div></section><aside class="mapcard"><div class="maptop"><span>ACTIVE DUTY MAP</span><span>01 / 03</span></div><div class="mapgraphic"><svg viewBox="0 0 260 130" aria-label="Dust Sector layout: B tunnels west, mid doors center, A long east"><path d="M75 7h110v116H75Z M100 90h16v24h-16Z M143 90h18v24h-18Z M99 44h18v38H99Z M143 42h18v40h-18Z M100 15h16v22h-16Z M142 15h16v22h-16Z" fill-rule="evenodd"/><path class="route" d="M130 111V30 M130 86H87V26 M130 86h42V25"/><text x="164" y="22">A</text><text x="82" y="22">B</text></svg></div><div class="mapbottom"><div><h3>DUST SECTOR</h3><p>Al-Mazrah outskirts · 14:32</p></div><span class="sun">☀</span></div><div class="maptags"><span>DEFUSAL</span><span>DESERT</span><span>COMPETITIVE</span></div></aside><div class="bottomline"><div><span class="accent">01</span><div><b>PRECISION IS EVERYTHING</b><small>Competitive by design. Unforgiving by nature.</small></div></div><span class="version">PRE-ALPHA BUILD 0.8.4 <i>●</i> WEBGL 2.0</span></div></main><div class="scene-label" id="sceneLabel"><span>34° 31′ 08.2″ N / 69° 10′ 25.4″ E</span><b>DUST SECTOR <i>—</i> A SITE</b></div><div id="hud" class="hidden"><div class="score"><span class="blue">CT <b id="ctscore">0</b></span><div><small>ROUND 01 / 12</small><strong id="timer">1:55</strong></div><span class="orange"><b id="tscore">0</b> T</span></div><div class="radar"><span>N</span><div class="radar-map">A <i>▲</i><b>B</b></div><small>A LONG</small></div><div class="killfeed" id="killfeed"></div><div id="crosshair"><i></i><i></i><i></i><i></i></div><div id="hitmarker">×</div><div id="roundMessage"></div><div class="hudbottom"><div class="health"><small>VANGUARD <span>CT</span></small><strong>＋ <b id="health">100</b> <span>▰ 100</span></strong><div class="healthbar"><i id="healthbar"></i></div></div><div class="hints">W A S D <span>MOVE</span> &nbsp; R <span>RELOAD</span> &nbsp; SHIFT <span>WALK</span> &nbsp; ESC <span>MENU</span></div><div class="ammo"><small id="weaponName">AK-47 <span>7.62 × 39 MM</span></small><strong><b id="ammo">30</b><span>/ <i id="reserve">90</i></span></strong></div></div></div><div id="modal" class="hidden"><div class="panel"><button id="closeModal">×</button><div id="modalBody"></div></div></div><div id="damage"></div><script type="module" src="/src/main.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BREACH — Tactical Operations</title>
+    <link rel="stylesheet" href="/src/style.css">
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="vignette"></div>
+
+    <header>
+      <a class="brand" href="#">B<span>R</span>EACH<i>®</i><small>TACTICAL OPERATIONS</small></a>
+      <nav>
+        <button class="nav active" data-tab="play">PLAY</button>
+        <button class="nav" data-tab="loadout">LOADOUT</button>
+        <button class="nav" data-tab="how">FIELD MANUAL</button>
+      </nav>
+      <div class="profile">
+        <span class="online"></span> SERVERS ONLINE <b>EU · 24 MS</b>
+        <div class="avatar">V</div>
+      </div>
+    </header>
+
+    <main id="menu">
+      <section class="intro">
+        <div class="eyebrow"><span></span> SEASON 01 <i>/</i> OPERATION SUNBREAK</div>
+        <h1>EVERY ANGLE.<br>EVERY SECOND.<br><em>COUNTS.</em></h1>
+        <p>One life. Five opponents. No second chances.<br>Step into the next generation of tactical combat.</p>
+        <div class="launch">
+          <button id="deploy">DEPLOY NOW <span>↗</span></button>
+          <div class="launch-note">QUICK MATCH <b>5V5 · DEFUSAL</b><em>PRESS B TO BUY</em></div>
+        </div>
+        <div class="status"><span class="online"></span> LIVE TRAINING AVAILABLE <span class="divider">/</span> NO DOWNLOAD REQUIRED</div>
+      </section>
+
+      <aside class="mapcard">
+        <div class="maptop"><span>ACTIVE DUTY MAP</span><span>01 / 03</span></div>
+        <div class="mapgraphic">
+          <svg viewBox="0 0 260 130" aria-label="Dust Sector layout: B tunnels west, mid doors center, A long east">
+            <path d="M75 7h110v116H75Z M100 90h16v24h-16Z M143 90h18v24h-18Z M99 44h18v38H99Z M143 42h18v40h-18Z M100 15h16v22h-16Z M142 15h16v22h-16Z" fill-rule="evenodd"/>
+            <path class="route" d="M130 111V30 M130 86H87V26 M130 86h42V25"/>
+            <text x="164" y="22">A</text><text x="82" y="22">B</text>
+          </svg>
+        </div>
+        <div class="mapbottom">
+          <div><h3>DUST SECTOR</h3><p>Al-Mazrah outskirts · 14:32</p></div>
+          <span class="sun">☀</span>
+        </div>
+        <div class="maptags"><span>DEFUSAL</span><span>DESERT</span><span>COMPETITIVE</span></div>
+      </aside>
+
+      <div class="bottomline">
+        <div><span class="accent">01</span><div><b>PRECISION IS EVERYTHING</b><small>Competitive by design. Unforgiving by nature.</small></div></div>
+        <span class="version">PRE-ALPHA BUILD 0.8.4 <i>●</i> WEBGL 2.0</span>
+      </div>
+    </main>
+
+    <div class="scene-label" id="sceneLabel">
+      <span>34° 31′ 08.2″ N / 69° 10′ 25.4″ E</span>
+      <b>DUST SECTOR <i>—</i> A SITE</b>
+    </div>
+
+    <div id="hud" class="hidden">
+      <div class="score">
+        <span class="blue">CT <b id="ctscore">0</b></span>
+        <div><small id="roundLabel">ROUND 01 / 12</small><strong id="timer">1:55</strong></div>
+        <span class="orange"><b id="tscore">0</b> T</span>
+      </div>
+      <div class="radar"><span>N</span><div class="radar-map"></div><small>A LONG</small></div>
+      <div id="cashHud" class="cash-hud"><strong id="cashAmount">$16,000</strong><small>AVAILABLE</small></div>
+      <div class="killfeed" id="killfeed"></div>
+      <div id="crosshair"><i></i><i></i><i></i><i></i></div>
+      <div id="hitmarker">×</div>
+      <div id="roundMessage"></div>
+      <div class="hudbottom">
+        <div class="health">
+          <small>VANGUARD <span>CT</span></small>
+          <strong>＋ <b id="health">100</b> <span>▰ 100</span></strong>
+          <div class="healthbar"><i id="healthbar"></i></div>
+        </div>
+        <div class="hints"><b>W A S D</b> MOVE &nbsp; <b>R</b> RELOAD &nbsp; <b>SHIFT</b> WALK &nbsp; <b>B</b> BUY &nbsp; <b>RMB</b> SCOPE &nbsp; <b>ESC</b> MENU</div>
+        <div class="ammo">
+          <small id="weaponName">AK-47 <span>7.62 × 39 MM</span></small>
+          <strong><b id="ammo">30</b><span>/ <i id="reserve">90</i></span></strong>
+        </div>
+      </div>
+    </div>
+
+    <div id="scopeOverlay" class="hidden" aria-hidden="true">
+      <div class="scope-reticle"><i></i><b></b></div>
+      <div class="scope-caption"><strong id="scopeWeapon">AWP</strong><span id="scopeZoom">2.9× OPTIC</span></div>
+    </div>
+
+    <div id="buyMenu" class="hidden" role="dialog" aria-modal="true" aria-labelledby="buyTitle">
+      <div class="buy-shell">
+        <aside class="buy-sidebar">
+          <div class="armory-mark">BREACH <span>ARMORY</span></div>
+          <div class="buy-funds">
+            <small>AVAILABLE FUNDS</small>
+            <strong id="buyBalance">$16,000</strong>
+            <span>TRAINING CREDITS</span>
+          </div>
+          <nav id="buyCategories" class="buy-categories" aria-label="Weapon categories"></nav>
+          <div class="buy-sidebar-note">
+            <span class="online"></span> FIELD BUY ACTIVE
+            <p>Purchase a weapon to equip it immediately. Earn cash for eliminations and round results.</p>
+          </div>
+        </aside>
+
+        <section class="buy-main">
+          <div class="buy-header">
+            <div class="buy-title-block">
+              <span class="buy-eyebrow">TACTICAL SUPPLY · DUST SECTOR</span>
+              <h2 id="buyTitle">FIELD BUY</h2>
+            </div>
+            <label class="buy-search"><span>⌕</span><input id="buySearch" type="search" placeholder="SEARCH WEAPONS" autocomplete="off" aria-label="Search weapons"></label>
+            <button id="closeBuy" class="buy-close" type="button" aria-label="Close buy menu">×</button>
+          </div>
+
+          <div class="buy-subhead">
+            <span id="buyGridTitle">ALL WEAPONS</span>
+            <span id="buyResultCount">36 AVAILABLE</span>
+          </div>
+          <div class="buy-scroll"><div id="buyGrid" class="weapon-grid"></div></div>
+          <footer class="buy-footer">
+            <div><span class="buy-notice" id="buyNotice">BROWSE ARMORY · SELECT TO EQUIP</span><small>EQUIPPED <b id="buyEquipped">AK-47</b></small></div>
+            <div class="buy-footer-controls"><span><kbd>B</kbd> / <kbd>ESC</kbd> CLOSE</span><strong id="buyFooterBalance">$16,000</strong></div>
+          </footer>
+        </section>
+      </div>
+    </div>
+
+    <div id="modal" class="hidden">
+      <div class="panel">
+        <button id="closeModal" aria-label="Close">×</button>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+    <div id="damage"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
